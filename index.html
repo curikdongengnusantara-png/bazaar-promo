@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bazaar Promo - Katalog Bahan Pokok</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 font-sans pb-24">
+
+    <!-- HEADER AGEN -->
+    <header id="header-agen" class="bg-gradient-to-r from-emerald-600 to-green-500 text-white p-5 shadow-lg rounded-b-2xl">
+        <div class="max-w-md mx-auto flex items-center space-x-4">
+            <div id="avatar-container" class="w-14 h-14 bg-white text-emerald-700 font-bold text-2xl rounded-full flex items-center justify-center border-2 border-white shadow">
+                P
+            </div>
+            <div>
+                <h1 id="nama-bazaar" class="text-xl font-bold">Bazaar Promo Ibu Puput</h1>
+                <p id="alamat-pickup" class="text-xs text-green-100 mt-1"><i class="fa-solid fa-location-dot mr-1"></i> Pickup: RT 03 / RW 02, Blok A No. 12</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- COUNTDOWN TIMER CUT-OFF -->
+    <div class="max-w-md mx-auto px-4 mt-3">
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center justify-between text-amber-800 text-xs shadow-sm">
+            <span class="font-semibold"><i class="fa-regular fa-clock mr-1"></i> Cut-off Pesanan Terdekat:</span>
+            <span id="timer" class="font-bold bg-amber-200 text-amber-900 px-2 py-1 rounded">Kamis & Minggu</span>
+        </div>
+    </div>
+
+    <!-- KATALOG PRODUK -->
+    <main class="max-w-md mx-auto px-4 mt-4">
+        <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Pilihan Bahan Pokok Hemat</h2>
+        <div id="product-list" class="grid grid-cols-2 gap-3">
+            <!-- Loading State -->
+            <div class="col-span-2 text-center py-8 text-gray-500 text-sm">
+                <i class="fa-solid fa-spinner fa-spin mr-2"></i> Memuat katalog produk...
+            </div>
+        </div>
+    </main>
+
+    <!-- FLOATING CART BAR -->
+    <div id="cart-bar" class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-xl p-4 hidden">
+        <div class="max-w-md mx-auto flex items-center justify-between">
+            <div>
+                <p id="cart-count" class="text-xs text-gray-500 font-medium">0 Item Terpilih</p>
+                <p id="cart-total" class="text-lg font-extrabold text-emerald-600">Rp0</p>
+            </div>
+            <button onclick="openCheckout()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-5 rounded-xl shadow-md transition-all text-sm flex items-center">
+                Lanjut Pesan <i class="fa-solid fa-arrow-right ml-2"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL CHECKOUT -->
+    <div id="checkout-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center hidden">
+        <div class="bg-white w-full max-w-md rounded-t-3xl p-6 shadow-2xl transition-all">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h3 class="text-base font-bold text-gray-800">Formulir Pemesanan</h3>
+                <button onclick="closeCheckout()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+
+            <form id="order-form" onsubmit="submitOrder(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Lengkap Pembeli *</label>
+                    <input type="text" id="buyer-name" required placeholder="Contoh: Ibu Ani" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Nomor WhatsApp *</label>
+                    <input type="tel" id="buyer-phone" required placeholder="Contoh: 08123456789" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Pilih Hari Pickup *</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="border border-gray-300 rounded-lg p-2.5 flex items-center justify-center space-x-2 text-xs font-medium cursor-pointer hover:bg-emerald-50 has-[:checked]:border-emerald-600 has-[:checked]:bg-emerald-50 has-[:checked]:text-emerald-700">
+                            <input type="radio" name="pickup-day" value="Kamis" checked class="accent-emerald-600">
+                            <span>Pickup Kamis</span>
+                        </label>
+                        <label class="border border-gray-300 rounded-lg p-2.5 flex items-center justify-center space-x-2 text-xs font-medium cursor-pointer hover:bg-emerald-50 has-[:checked]:border-emerald-600 has-[:checked]:bg-emerald-50 has-[:checked]:text-emerald-700">
+                            <input type="radio" name="pickup-day" value="Minggu" class="accent-emerald-600">
+                            <span>Pickup Minggu</span>
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Metode Pembayaran *</label>
+                    <select id="payment-method" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
+                        <option value="Tunai Saat Pickup">Tunai Saat Pickup (Cash on Pickup)</option>
+                        <option value="QRIS Statis">QRIS Statis</option>
+                    </select>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" id="btn-submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-lg transition-all text-sm">
+                        Kirim Pesanan via WhatsApp
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SCRIPT UTAMA KONEKSI SUPABASE -->
+    <script>
+        const SUPABASE_URL = "https://ndsomkmlphvhltnlfuwm.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_kqnKRXsWabk4hXn1IL-qPQ_pB6KRmsI";
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let currentAgent = null;
+        let products = [];
+        let cart = {};
+
+        async function init() {
+            // Fetch Agent default (ibu-puput)
+            const { data: agentData } = await _supabase.from('agents').select('*').eq('slug', 'ibu-puput').single();
+            if (agentData) {
+                currentAgent = agentData;
+                document.getElementById('nama-bazaar').innerText = `Bazaar Promo ${agentData.name}`;
+                document.getElementById('alamat-pickup').innerHTML = `<i class="fa-solid fa-location-dot mr-1"></i> Pickup: ${agentData.pickup_address}`;
+                document.getElementById('avatar-container').innerText = agentData.name.charAt(0);
+            }
+
+            // Fetch Products
+            const { data: productData } = await _supabase.from('products').select('*').eq('is_active', true);
+            if (productData) {
+                products = productData;
+                renderProducts();
+            }
+        }
+
+        function renderProducts() {
+            const listContainer = document.getElementById('product-list');
+            listContainer.innerHTML = '';
+
+            products.forEach(p => {
+                const qty = cart[p.id] || 0;
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col justify-between";
+                card.innerHTML = `
+                    <div>
+                        <div class="relative h-28 bg-gray-100">
+                            <img src="${p.image_url}" class="w-full h-full object-cover" alt="${p.name}">
+                            <span class="absolute top-2 left-2 bg-red-500 text-white font-bold text-[10px] px-1.5 py-0.5 rounded">
+                                Hemat Rp${(p.original_price - p.promo_price).toLocaleString('id-ID')}
+                            </span>
+                        </div>
+                        <div class="p-2.5">
+                            <p class="text-[10px] text-gray-400 uppercase font-semibold">${p.unit}</p>
+                            <h3 class="text-xs font-bold text-gray-800 line-clamp-1">${p.name}</h3>
+                            <p class="text-[11px] text-gray-400 line-through mt-0.5">Rp${p.original_price.toLocaleString('id-ID')}</p>
+                            <p class="text-sm font-extrabold text-emerald-600">Rp${p.promo_price.toLocaleString('id-ID')}</p>
+                        </div>
+                    </div>
+                    <div class="p-2.5 pt-0">
+                        ${qty === 0 ? `
+                            <button onclick="updateCart('${p.id}', 1)" class="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold py-1.5 rounded-lg text-xs border border-emerald-200 transition-all">
+                                + Tambah
+                            </button>
+                        ` : `
+                            <div class="flex items-center justify-between bg-emerald-50 rounded-lg p-1 border border-emerald-200">
+                                <button onclick="updateCart('${p.id}', -1)" class="w-6 h-6 bg-white text-emerald-700 rounded font-bold text-xs flex items-center justify-center shadow-sm">-</button>
+                                <span class="text-xs font-bold text-emerald-800">${qty}</span>
+                                <button onclick="updateCart('${p.id}', 1)" class="w-6 h-6 bg-emerald-600 text-white rounded font-bold text-xs flex items-center justify-center shadow-sm">+</button>
+                            </div>
+                        `}
+                    </div>
+                `;
+                listContainer.appendChild(card);
+            });
+        }
+
+        function updateCart(productId, change) {
+            cart[productId] = (cart[productId] || 0) + change;
+            if (cart[productId] <= 0) delete cart[productId];
+            renderProducts();
+            updateCartBar();
+        }
+
+        function updateCartBar() {
+            let totalCount = 0;
+            let totalPrice = 0;
+            Object.keys(cart).forEach(id => {
+                const p = products.find(prod => prod.id === id);
+                if (p) {
+                    totalCount += cart[id];
+                    totalPrice += cart[id] * p.promo_price;
+                }
+            });
+
+            const bar = document.getElementById('cart-bar');
+            if (totalCount > 0) {
+                bar.classList.remove('hidden');
+                document.getElementById('cart-count').innerText = `${totalCount} Item Terpilih`;
+                document.getElementById('cart-total').innerText = `Rp${totalPrice.toLocaleString('id-ID')}`;
+            } else {
+                bar.classList.add('hidden');
+            }
+        }
+
+        function openCheckout() { document.getElementById('checkout-modal').classList.remove('hidden'); }
+        function closeCheckout() { document.getElementById('checkout-modal').classList.add('hidden'); }
+
+        async function submitOrder(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit');
+            btn.disabled = true;
+            btn.innerText = "Memproses Pesanan...";
+
+            const buyerName = document.getElementById('buyer-name').value;
+            const buyerPhone = document.getElementById('buyer-phone').value;
+            const pickupDay = document.querySelector('input[name="pickup-day"]:checked').value;
+            const paymentMethod = document.getElementById('payment-method').value;
+
+            let orderItems = [];
+            let totalAmount = 0;
+            Object.keys(cart).forEach(id => {
+                const p = products.find(prod => prod.id === id);
+                if (p) {
+                    orderItems.push({ id: p.id, name: p.name, qty: cart[id], price: p.promo_price });
+                    totalAmount += cart[id] * p.promo_price;
+                }
+            });
+
+            // Save to Supabase
+            const { data, error } = await _supabase.from('orders').insert([{
+                agent_id: currentAgent.id,
+                buyer_name: buyerName,
+                buyer_phone: buyerPhone,
+                pickup_date: pickupDay,
+                payment_method: paymentMethod,
+                total_amount: totalAmount,
+                items: orderItems,
+                status: 'pending'
+            }]);
+
+            if (error) {
+                alert('Gagal menyimpan pesanan: ' + error.message);
+                btn.disabled = false;
+                btn.innerText = "Kirim Pesanan via WhatsApp";
+                return;
+            }
+
+            // Redirect to WhatsApp
+            let textWA = `Halo ${currentAgent.name}, saya mau pesen bahan pokok di Bazaar Promo:\n\n`;
+            textWA += `*Nama:* ${buyerName}\n`;
+            textWA += `*Jadwal Pickup:* ${pickupDay}\n`;
+            textWA += `*Metode Bayar:* ${paymentMethod}\n\n`;
+            textWA += `*Detail Pesanan:*\n`;
+            orderItems.forEach(i => {
+                textWA += `- ${i.name} (${i.qty}x) = Rp${(i.qty * i.price).toLocaleString('id-ID')}\n`;
+            });
+            textWA += `\n*TOTAL:* Rp${totalAmount.toLocaleString('id-ID')}`;
+
+            window.location.href = `https://wa.me/${currentAgent.phone_number}?text=${encodeURIComponent(textWA)}`;
+        }
+
+        init();
+    </script>
+</body>
+</html>
