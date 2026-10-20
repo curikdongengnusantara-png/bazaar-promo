@@ -113,10 +113,9 @@
         let cart = {};
 
         async function init() {
-            // Fetch Agent default (pkk-br-geria)
+            // Fetch Agent (Prioritas pkk-br-geria, fallback ke agen pertama jika tidak ada)
             let { data: agentData } = await _supabase.from('agents').select('*').eq('slug', 'pkk-br-geria').single();
             
-            // Fallback jika belum di-update di DB
             if (!agentData) {
                 const { data: fallbackData } = await _supabase.from('agents').select('*').limit(1).single();
                 agentData = fallbackData;
@@ -230,7 +229,7 @@
                 }
             });
 
-            // Save to Supabase
+            // Simpan Pesanan ke Supabase Database
             const { data, error } = await _supabase.from('orders').insert([{
                 agent_id: currentAgent.id,
                 buyer_name: buyerName,
@@ -249,7 +248,7 @@
                 return;
             }
 
-            // Redirect to WhatsApp
+            // Redirect Otomatis ke WhatsApp Agen
             let textWA = `Halo ${currentAgent.name}, saya mau pesen bahan pokok di Bazaar Promo:\n\n`;
             textWA += `*Nama:* ${buyerName}\n`;
             textWA += `*Jadwal Pickup:* ${pickupDay}\n`;
