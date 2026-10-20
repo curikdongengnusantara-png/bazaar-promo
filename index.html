@@ -10,7 +10,7 @@
 </head>
 <body class="bg-gray-100 font-sans pb-24">
 
-    <!-- HEADER AGEN (GRADIENT MERAH-HITAM) -->
+    <!-- HEADER AGEN -->
     <header id="header-agen" class="bg-gradient-to-r from-red-700 via-red-900 to-black text-white p-5 shadow-lg rounded-b-2xl">
         <div class="max-w-md mx-auto flex items-center space-x-4">
             <div id="avatar-container" class="w-14 h-14 bg-white text-red-700 font-bold text-2xl rounded-full flex items-center justify-center border-2 border-white shadow">
@@ -35,7 +35,6 @@
     <main class="max-w-md mx-auto px-4 mt-4">
         <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Pilihan Bahan Pokok Hemat</h2>
         <div id="product-list" class="grid grid-cols-2 gap-3">
-            <!-- Loading State -->
             <div class="col-span-2 text-center py-8 text-gray-500 text-sm">
                 <i class="fa-solid fa-spinner fa-spin mr-2"></i> Memuat katalog produk...
             </div>
@@ -113,9 +112,7 @@
         let cart = {};
 
         async function init() {
-            // Fetch Agent (Prioritas pkk-br-geria, fallback ke agen pertama jika tidak ada)
             let { data: agentData } = await _supabase.from('agents').select('*').eq('slug', 'pkk-br-geria').single();
-            
             if (!agentData) {
                 const { data: fallbackData } = await _supabase.from('agents').select('*').limit(1).single();
                 agentData = fallbackData;
@@ -128,7 +125,6 @@
                 document.getElementById('avatar-container').innerText = agentData.name.charAt(0);
             }
 
-            // Fetch Products
             const { data: productData } = await _supabase.from('products').select('*').eq('is_active', true);
             if (productData) {
                 products = productData;
@@ -139,7 +135,6 @@
         function renderProducts() {
             const listContainer = document.getElementById('product-list');
             listContainer.innerHTML = '';
-
             products.forEach(p => {
                 const qty = cart[p.id] || 0;
                 const card = document.createElement('div');
@@ -148,9 +143,7 @@
                     <div>
                         <div class="relative h-28 bg-gray-100">
                             <img src="${p.image_url}" class="w-full h-full object-cover" alt="${p.name}">
-                            <span class="absolute top-2 left-2 bg-red-600 text-white font-bold text-[10px] px-1.5 py-0.5 rounded">
-                                Hemat Rp${(p.original_price - p.promo_price).toLocaleString('id-ID')}
-                            </span>
+                            <span class="absolute top-2 left-2 bg-red-600 text-white font-bold text-[10px] px-1.5 py-0.5 rounded">Hemat Rp${(p.original_price - p.promo_price).toLocaleString('id-ID')}</span>
                         </div>
                         <div class="p-2.5">
                             <p class="text-[10px] text-gray-400 uppercase font-semibold">${p.unit}</p>
@@ -161,9 +154,7 @@
                     </div>
                     <div class="p-2.5 pt-0">
                         ${qty === 0 ? `
-                            <button onclick="updateCart('${p.id}', 1)" class="w-full bg-red-50 hover:bg-red-100 text-red-700 font-bold py-1.5 rounded-lg text-xs border border-red-200 transition-all">
-                                + Tambah
-                            </button>
+                            <button onclick="updateCart('${p.id}', 1)" class="w-full bg-red-50 hover:bg-red-100 text-red-700 font-bold py-1.5 rounded-lg text-xs border border-red-200 transition-all">+ Tambah</button>
                         ` : `
                             <div class="flex items-center justify-between bg-red-50 rounded-lg p-1 border border-red-200">
                                 <button onclick="updateCart('${p.id}', -1)" class="w-6 h-6 bg-white text-red-700 rounded font-bold text-xs flex items-center justify-center shadow-sm">-</button>
@@ -208,11 +199,11 @@
         function openCheckout() { document.getElementById('checkout-modal').classList.remove('hidden'); }
         function closeCheckout() { document.getElementById('checkout-modal').classList.add('hidden'); }
 
-        async function submitOrder(e) {
+        function submitOrder(e) {
             e.preventDefault();
             const btn = document.getElementById('btn-submit');
             btn.disabled = true;
-            btn.innerText = "Memproses Pesanan...";
+            btn.innerText = "Membuka WhatsApp...";
 
             const buyerName = document.getElementById('buyer-name').value;
             const buyerPhone = document.getElementById('buyer-phone').value;
@@ -229,8 +220,19 @@
                 }
             });
 
-            // Simpan Pesanan ke Supabase Database
-            const { data, error } = await _supabase.from('orders').insert([{
+            // 1. Buat format pesan WhatsApp
+            let textWA = `Halo ${currentAgent.name}, saya mau pesen bahan pokok di *Bazaar Promo*:\n\n`;
+            textWA += `*Nama:* ${buyerName}\n`;
+            textWA += `*Jadwal Pickup:* ${pickupDay}\n`;
+            textWA += `*Metode Bayar:* ${paymentMethod}\n\n`;
+            textWA += `*Detail Pesanan:*\n`;
+            orderItems.forEach(i => {
+                textWA += `- ${i.name} (${i.qty}x) = Rp${(i.qty * i.price).toLocaleString('id-ID')}\n`;
+            });
+            textWA += `\n*TOTAL: Rp${totalAmount.toLocaleString('id-ID')}*`;
+
+            // 2. Simpan ke Database secara diam-diam (background) tanpa menunggu / memblokir sistem
+            _supabase.from('orders').insert([{
                 agent_id: currentAgent.id,
                 buyer_name: buyerName,
                 buyer_phone: buyerPhone,
@@ -239,26 +241,9 @@
                 total_amount: totalAmount,
                 items: orderItems,
                 status: 'pending'
-            }]);
+            }]).then(() => console.log('Tersimpan di DB'));
 
-            if (error) {
-                alert('Gagal menyimpan pesanan: ' + error.message);
-                btn.disabled = false;
-                btn.innerText = "Kirim Pesanan via WhatsApp";
-                return;
-            }
-
-            // Redirect Otomatis ke WhatsApp Agen
-            let textWA = `Halo ${currentAgent.name}, saya mau pesen bahan pokok di Bazaar Promo:\n\n`;
-            textWA += `*Nama:* ${buyerName}\n`;
-            textWA += `*Jadwal Pickup:* ${pickupDay}\n`;
-            textWA += `*Metode Bayar:* ${paymentMethod}\n\n`;
-            textWA += `*Detail Pesanan:*\n`;
-            orderItems.forEach(i => {
-                textWA += `- ${i.name} (${i.qty}x) = Rp${(i.qty * i.price).toLocaleString('id-ID')}\n`;
-            });
-            textWA += `\n*TOTAL:* Rp${totalAmount.toLocaleString('id-ID')}`;
-
+            // 3. SECARA INSTAN Arahkan ke WhatsApp agar browser HP tidak memblokir pop-up
             window.location.href = `https://wa.me/${currentAgent.phone_number}?text=${encodeURIComponent(textWA)}`;
         }
 
