@@ -201,50 +201,75 @@
 
         function submitOrder(e) {
             e.preventDefault();
-            const btn = document.getElementById('btn-submit');
-            btn.disabled = true;
-            btn.innerText = "Membuka WhatsApp...";
+            
+            try {
+                const btn = document.getElementById('btn-submit');
+                btn.disabled = true;
+                btn.innerText = "Membuka WhatsApp...";
 
-            const buyerName = document.getElementById('buyer-name').value;
-            const buyerPhone = document.getElementById('buyer-phone').value;
-            const pickupDay = document.querySelector('input[name="pickup-day"]:checked').value;
-            const paymentMethod = document.getElementById('payment-method').value;
+                const buyerName = document.getElementById('buyer-name').value;
+                const buyerPhone = document.getElementById('buyer-phone').value;
+                const pickupDay = document.querySelector('input[name="pickup-day"]:checked').value;
+                const paymentMethod = document.getElementById('payment-method').value;
 
-            let orderItems = [];
-            let totalAmount = 0;
-            Object.keys(cart).forEach(id => {
-                const p = products.find(prod => prod.id === id);
-                if (p) {
-                    orderItems.push({ id: p.id, name: p.name, qty: cart[id], price: p.promo_price });
-                    totalAmount += cart[id] * p.promo_price;
-                }
-            });
+                let orderItems = [];
+                let totalAmount = 0;
+                Object.keys(cart).forEach(id => {
+                    const p = products.find(prod => prod.id === id);
+                    if (p) {
+                        orderItems.push({ id: p.id, name: p.name, qty: cart[id], price: p.promo_price });
+                        totalAmount += cart[id] * p.promo_price;
+                    }
+                });
 
-            // 1. Buat format pesan WhatsApp
-            let textWA = `Halo ${currentAgent.name}, saya mau pesen bahan pokok di *Bazaar Promo*:\n\n`;
-            textWA += `*Nama:* ${buyerName}\n`;
-            textWA += `*Jadwal Pickup:* ${pickupDay}\n`;
-            textWA += `*Metode Bayar:* ${paymentMethod}\n\n`;
-            textWA += `*Detail Pesanan:*\n`;
-            orderItems.forEach(i => {
-                textWA += `- ${i.name} (${i.qty}x) = Rp${(i.qty * i.price).toLocaleString('id-ID')}\n`;
-            });
-            textWA += `\n*TOTAL: Rp${totalAmount.toLocaleString('id-ID')}*`;
+                // Format Pesan WA
+                let textWA = `Halo ${currentAgent.name}, saya mau pesen bahan pokok di *Bazaar Promo*:\n\n`;
+                textWA += `*Nama:* ${buyerName}\n`;
+                textWA += `*Jadwal Pickup:* ${pickupDay}\n`;
+                textWA += `*Metode Bayar:* ${paymentMethod}\n\n`;
+                textWA += `*Detail Pesanan:*\n`;
+                orderItems.forEach(i => {
+                    textWA += `- ${i.name} (${i.qty}x) = Rp${(i.qty * i.price).toLocaleString('id-ID')}\n`;
+                });
+                textWA += `\n*TOTAL: Rp${totalAmount.toLocaleString('id-ID')}*`;
 
-            // 2. Simpan ke Database secara diam-diam (background) tanpa menunggu / memblokir sistem
-            _supabase.from('orders').insert([{
-                agent_id: currentAgent.id,
-                buyer_name: buyerName,
-                buyer_phone: buyerPhone,
-                pickup_date: pickupDay,
-                payment_method: paymentMethod,
-                total_amount: totalAmount,
-                items: orderItems,
-                status: 'pending'
-            }]).then(() => console.log('Tersimpan di DB'));
+                // Proses Simpan ke Database (Latar Belakang)
+                _supabase.from('orders').insert([{
+                    agent_id: currentAgent.id,
+                    buyer_name: buyerName,
+                    buyer_phone: buyerPhone,
+                    pickup_date: pickupDay,
+                    payment_method: paymentMethod,
+                    total_amount: totalAmount,
+                    items: orderItems,
+                    status: 'pending'
+                }]).then(() => {
+                    console.log('Database tersimpan');
+                }).catch(err => console.error(err));
 
-            // 3. SECARA INSTAN Arahkan ke WhatsApp agar browser HP tidak memblokir pop-up
-            window.location.href = `https://wa.me/${currentAgent.phone_number}?text=${encodeURIComponent(textWA)}`;
+                // BUKA WHATSAPP (METODE ANTI-BLOCKER BROWSER HP)
+                const waUrl = `https://api.whatsapp.com/send?phone=${currentAgent.phone_number}&text=${encodeURIComponent(textWA)}`;
+                
+                // Buat elemen link "ghaib" dan klik paksa
+                const link = document.createElement('a');
+                link.href = waUrl;
+                link.target = "_blank"; // Coba buka di aplikasi luar
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                // Kembalikan tombol seperti semula berjaga-jaga jika butuh klik ulang
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerText = "Kirim Pesanan via WhatsApp";
+                }, 2000);
+
+            } catch(error) {
+                alert("Mohon maaf, terjadi kendala saat mengalihkan ke WhatsApp: " + error.message);
+                const btn = document.getElementById('btn-submit');
+                btn.disabled = false;
+                btn.innerText = "Kirim Pesanan via WhatsApp";
+            }
         }
 
         init();
